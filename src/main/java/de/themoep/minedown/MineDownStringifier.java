@@ -22,31 +22,18 @@ package de.themoep.minedown;
  * SOFTWARE.
  */
 
-import net.md_5.bungee.api.ChatColor;
-import net.md_5.bungee.api.chat.BaseComponent;
-import net.md_5.bungee.api.chat.ClickEvent;
-import net.md_5.bungee.api.chat.HoverEvent;
-import net.md_5.bungee.api.chat.TextComponent;
-import net.md_5.bungee.api.chat.hover.content.Content;
-import net.md_5.bungee.api.chat.hover.content.Entity;
-import net.md_5.bungee.api.chat.hover.content.Item;
-import net.md_5.bungee.api.chat.hover.content.Text;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class MineDownStringifier {
-
-    private static final boolean HAS_FONT_SUPPORT = Util.hasMethod(BaseComponent.class, "getFontRaw");
-    private static final boolean HAS_HOVER_CONTENT_SUPPORT = Util.hasMethod(HoverEvent.class, "getContents");
-    private static final Method HOVER_GET_VALUE = Util.getMethod(HoverEvent.class, "getValue");
 
     /**
      * Whether or not to use legacy color codes (Default: false)
@@ -85,17 +72,17 @@ public class MineDownStringifier {
 
     private StringBuilder value = new StringBuilder();
 
-    private ChatColor color = null;
+    private TextColor color = null;
     private ClickEvent clickEvent = null;
     private HoverEvent hoverEvent = null;
-    private Set<ChatColor> formats = new LinkedHashSet<>();
+    private Set<TextDecoration> formats = new LinkedHashSet<>();
 
     /**
      * Create a {@link MineDown} string from a component message
      * @param components The components to generate a MineDown string from
      * @return The MineDown string
      */
-    public String stringify(BaseComponent... components) {
+    public String stringify(Component component) {
         StringBuilder sb = new StringBuilder();
         for (BaseComponent component : components) {
             if (!component.hasFormatting()) {

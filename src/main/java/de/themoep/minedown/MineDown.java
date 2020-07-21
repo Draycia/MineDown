@@ -22,10 +22,8 @@ package de.themoep.minedown;
  * SOFTWARE.
  */
 
-import net.md_5.bungee.api.ChatColor;
-import net.md_5.bungee.api.chat.BaseComponent;
-import net.md_5.bungee.api.chat.ClickEvent;
-import net.md_5.bungee.api.chat.HoverEvent;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
 
 import java.util.Map;
 
@@ -38,8 +36,8 @@ import java.util.Map;
  *
  * <table>
  * <caption><strong> Inline Formatting </strong></caption>
- * <tr><td> Color legacy  </td><td><tt> &amp;6Text           </tt></td><td> {@link ChatColor} codes </td></tr>
- * <tr><td> Color         </td><td><tt> &amp;gold&amp;Text   </tt></td><td> {@link ChatColor} codes </td></tr>
+ * <tr><td> Color legacy  </td><td><tt> &amp;6Text           </tt></td><td> {@link net.kyori.adventure.text.format.TextColor} codes </td></tr>
+ * <tr><td> Color         </td><td><tt> &amp;gold&amp;Text   </tt></td><td> {@link net.kyori.adventure.text.format.TextColor} codes </td></tr>
  * <tr><td> RGB Hex Color </td><td><tt> &amp;ff00ff&amp;Text </tt></td><td> Full hexadecimal format  </td></tr>
  * <tr><td> RGB Hex Color </td><td><tt> &amp;f0f&amp;Text    </tt></td><td> Short format (equivalent to long one)  </td></tr>
  * <tr><td> Bold          </td><td><tt> **Text**             </tt></td></tr>
@@ -63,7 +61,7 @@ import java.util.Map;
  * <p>
  * <table>
  * <caption><strong> Advanced Syntax </strong></caption>
- * <tr><td> General syntax      </td><td><tt> [Text](action=value)                 </tt></td><td> {@link ClickEvent.Action}, {@link HoverEvent.Action} </td></tr>
+ * <tr><td> General syntax      </td><td><tt> [Text](action=value)                 </tt></td><td> {@link net.kyori.adventure.text.event.ClickEvent.Action}, {@link net.kyori.adventure.text.event.HoverEvent.Action} </td></tr>
  * <tr><td> Link                </td><td><tt> [Text](open_url=https://example.com) </tt></td></tr>
  * <tr><td> Color               </td><td><tt> [Text](color=red)                    </tt></td></tr>
  * <tr><td> RGB Hex Color       </td><td><tt> [Text](color=#ff00ff)                </tt></td><td> Full hexadecimal format </td></tr>
@@ -85,7 +83,7 @@ public class MineDown {
     private String message;
     private final Replacer replacer = new Replacer();
     private final MineDownParser parser = new MineDownParser();
-    private BaseComponent[] baseComponents = null;
+    private Component component = null;
     
     /**
      * Create a new MineDown builder with a certain message
@@ -101,35 +99,36 @@ public class MineDown {
      * @param replacements  Optional placeholder replacements
      * @return              The parsed components
      */
-    public static BaseComponent[] parse(String message, String... replacements) {
+    public static Component parse(String message, String... replacements) {
         return new MineDown(message).replace(replacements).toComponent();
     }
     
     /**
      * Convert components to a MineDown string
-     * @param components    The components to convert
+     * @param component     The components to convert
      * @return              The components represented as a MineDown string
      */
-    public static String stringify(BaseComponent[] components) {
-        return new MineDownStringifier().stringify(components);
+    public static String stringify(Component component) {
+        return new MineDownStringifier().stringify(component);
     }
     
     /**
      * Parse and convert the message to the component
      * @return The parsed component message
      */
-    public BaseComponent[] toComponent() {
-        if (baseComponents() == null) {
-            baseComponents = replacer().replaceIn(parser().parse(message()).create());
+    public Component toComponent() {
+        if (component() == null) {
+            component = replacer().replaceIn(parser().parse(message()).build());
         }
-        return baseComponents();
+
+        return component();
     }
     
     /**
      * Remove a cached component and re-parse the next time {@link #toComponent} is called
      */
     private void reset() {
-        baseComponents = null;
+        component = null;
     }
     
     /**
@@ -142,7 +141,7 @@ public class MineDown {
         replacer().replace(replacements);
         return this;
     }
-    
+
     /**
      * Add a map with placeholders and values that should get replaced in the message
      * @param replacements  The replacements mapped placeholder to value
@@ -160,9 +159,9 @@ public class MineDown {
      * @param replacement   The replacement components
      * @return              The Replacer instance
      */
-    public MineDown replace(String placeholder, BaseComponent... replacement) {
+    public MineDown replace(String placeholder, Component replacement) {
         reset();
-        replacer().replace(placeholder,replacement);
+        replacer().replace(placeholder, replacement);
         return this;
     }
     
@@ -386,8 +385,8 @@ public class MineDown {
         return this.parser;
     }
 
-    protected BaseComponent[] baseComponents() {
-        return this.baseComponents;
+    protected Component component() {
+        return this.component;
     }
 
     /**
@@ -411,22 +410,24 @@ public class MineDown {
 
     /**
      * Get the string that represents the format in MineDown
-     * @param format    The format
-     * @return          The MineDown string or an empty one if it's not a format
+     * @param decoration    The decoration
+     * @return              The MineDown string or an empty one if it's not a format
      */
-    public static String getFormatString(ChatColor format) {
-        if (format == ChatColor.BOLD) {
-            return "**";
-        } else if (format == ChatColor.ITALIC) {
-            return "##";
-        } else if (format == ChatColor.UNDERLINE) {
-            return "__";
-        } else if (format == ChatColor.STRIKETHROUGH) {
-            return "~~";
-        } else if (format == ChatColor.MAGIC) {
-            return "??";
+    public static String getDecorationString(TextDecoration decoration) {
+        switch (decoration) {
+            case BOLD:
+                return "**";
+            case ITALIC:
+                return "##";
+            case UNDERLINED:
+                return "__";
+            case STRIKETHROUGH:
+                return "~~";
+            case OBFUSCATED:
+                return "??";
+            default:
+                return "";
         }
-        return "";
     }
     
     /**
@@ -434,18 +435,18 @@ public class MineDown {
      * @param c The character
      * @return  The ChatColor of that format or <tt>null</tt> it none was found
      */
-    public static ChatColor getFormatFromChar(char c) {
+    public static TextDecoration getDecorationFromChar(char c) {
         switch (c) {
             case '~':
-                return ChatColor.STRIKETHROUGH;
+                return TextDecoration.STRIKETHROUGH;
             case '_':
-                return ChatColor.UNDERLINE;
+                return TextDecoration.UNDERLINED;
             case '*':
-                return ChatColor.BOLD;
+                return TextDecoration.BOLD;
             case '#':
-                return ChatColor.ITALIC;
+                return TextDecoration.ITALIC;
             case '?':
-                return ChatColor.MAGIC;
+                return TextDecoration.OBFUSCATED;
         }
         return null;
     }

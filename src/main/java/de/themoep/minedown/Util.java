@@ -24,7 +24,6 @@ package de.themoep.minedown;
 
 
 import java.awt.Color;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -156,36 +155,5 @@ public class Util {
             return 0;
         }
         return Math.sqrt(Math.pow(c1.getRed() - c2.getRed(), 2) + Math.pow(c1.getGreen() - c2.getGreen(), 2) + Math.pow(c1.getBlue() - c2.getBlue(), 2));
-    }
-
-    /**
-     * Check if a class has a certain method. See {@link Class#getMethod(String, Class[])}
-     * @param clazz     The class to check
-     * @param method    The method to check for
-     * @param parameter Method parameter types
-     * @return <tt>true</tt> if the class has the method, <tt>false</tt> if not
-     */
-    public static boolean hasMethod(Class<?> clazz, String method, Class<?>... parameter) {
-        try {
-            clazz.getMethod(method, parameter);
-            return true;
-        } catch (NoSuchMethodException methodDoesntExist) {
-            return false;
-        }
-    }
-
-    /**
-     * Get a method from a class if it exists. See {@link Class#getMethod(String, Class[])}
-     * @param clazz     The class
-     * @param method    The method name to get
-     * @param parameter Method parameter types
-     * @return the method, null if it doesn't exist
-     */
-    public static Method getMethod(Class<?> clazz, String method, Class<?>... parameter) {
-        try {
-            return clazz.getMethod(method, parameter);
-        } catch (NoSuchMethodException methodDoesntExist) {
-            return null;
-        }
     }
 }

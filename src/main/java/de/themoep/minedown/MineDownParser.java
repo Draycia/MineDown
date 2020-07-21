@@ -22,34 +22,19 @@ package de.themoep.minedown;
  * SOFTWARE.
  */
 
-import net.md_5.bungee.api.ChatColor;
-import net.md_5.bungee.api.chat.BaseComponent;
-import net.md_5.bungee.api.chat.ClickEvent;
-import net.md_5.bungee.api.chat.ComponentBuilder;
-import net.md_5.bungee.api.chat.HoverEvent;
-import net.md_5.bungee.api.chat.ItemTag;
-import net.md_5.bungee.api.chat.TextComponent;
-import net.md_5.bungee.api.chat.hover.content.Entity;
-import net.md_5.bungee.api.chat.hover.content.Item;
-import net.md_5.bungee.api.chat.hover.content.Text;
+import net.kyori.adventure.key.Key;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.ComponentBuilder;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.*;
 
-import java.awt.Color;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class MineDownParser {
-
-    private static final boolean HAS_APPEND_SUPPORT = Util.hasMethod(ComponentBuilder.class, "append", BaseComponent[].class);
-    private static final boolean HAS_RGB_SUPPORT = Util.hasMethod(ChatColor.class, "of", String.class);
-    private static final boolean HAS_FONT_SUPPORT = Util.hasMethod(ComponentBuilder.class, "font", String.class);
-    private static final boolean HAS_HOVER_CONTENT_SUPPORT = Util.hasMethod(HoverEvent.class, "getContents");
 
     /**
      * The character to use as a special color code. (Default: ampersand &amp;)
@@ -112,8 +97,8 @@ public class MineDownParser {
     private ComponentBuilder builder;
     private StringBuilder value;
     private String font;
-    private ChatColor color;
-    private Set<ChatColor> format;
+    private TextColor color;
+    private Set<TextDecoration> format;
     private ClickEvent clickEvent;
     private HoverEvent hoverEvent;
 
@@ -186,7 +171,7 @@ public class MineDownParser {
                 if (isLegacyHex) {
                     i = i + 2;
                 }
-                ChatColor encoded = null;
+                TextColor encoded = null;
                 Option filterOption = null;
                 StringBuilder colorString = new StringBuilder();
                 for (int j = i; j < message.length(); j++) {
@@ -197,7 +182,7 @@ public class MineDownParser {
                             continue;
                         } else if (colorString.length() > 1) {
                             try {
-                                encoded = parseColor(colorString.toString(), "", lenient(), backwardsCompatibility());
+                                encoded = parseColor(colorString.toString());
                                 filterOption = Option.SIMPLE_FORMATTING;
                                 i = j;
                             } catch (IllegalArgumentException ignored) {
@@ -212,7 +197,7 @@ public class MineDownParser {
                         colorString.append(c1);
                         if (isLegacyHex && colorString.length() == 6) {
                             try {
-                                encoded = parseColor("#" + colorString.toString(), "", lenient(), backwardsCompatibility());
+                                encoded = parseColor(colorString.toString());
                                 filterOption = Option.LEGACY_COLORS;
                                 i = j;
                             } catch (IllegalArgumentException ignored) {
@@ -269,7 +254,7 @@ public class MineDownParser {
                 // Simple formatting
             } else if (isFormatting) {
                 int endIndex = message.indexOf(String.valueOf(c) + String.valueOf(c), i + 2);
-                Set<ChatColor> formats = new HashSet<>(format);
+                Set<TextDecoration> formats = new HashSet<>(format);
                 if (!isFiltered(Option.SIMPLE_FORMATTING)) {
                     formats.add(MineDown.getFormatFromChar(c));
                 }
@@ -302,64 +287,38 @@ public class MineDownParser {
         }
         appendValue();
         if (builder == null) {
-            builder = new ComponentBuilder("");
+            builder = TextComponent.builder();
         }
         return builder;
     }
 
     private void append(ComponentBuilder builder) {
-        append(builder.create());
+        append(builder.build());
     }
 
-    private void append(BaseComponent[] components) {
+    private void append(Component component) {
         if (this.builder == null) {
-            if (components.length > 0) {
-                this.builder = new ComponentBuilder(components[0]);
-                for (int i = 1; i < components.length; i++) {
-                    builder.append(components[i]);
+            if (component.length > 0) {
+                this.builder = new ComponentBuilder(component[0]);
+                for (int i = 1; i < component.length; i++) {
+                    builder.append(component[i]);
                 }
             } else {
-                this.builder = new ComponentBuilder("");
+                this.builder = TextComponent.builder();
             }
         } else {
-            if (HAS_APPEND_SUPPORT) {
-                this.builder.append(components);
-            } else {
-                // Older versions didn't have ComponentBuilder#append(BaseComponent[])
-                // Recreating it with reflections. That might be slower but they should just update anyways...
-                if (components.length > 0) {
-                    try {
-                        Field fCurrent = this.builder.getClass().getDeclaredField("current");
-                        fCurrent.setAccessible(true);
-                        BaseComponent previous = (BaseComponent) fCurrent.get(this.builder);
-                        Field fParts = this.builder.getClass().getDeclaredField("parts");
-                        fParts.setAccessible(true);
-                        List<BaseComponent> parts = (List<BaseComponent>) fParts.get(this.builder);
-
-                        for (BaseComponent component : components) {
-                            parts.add(previous);
-                            fCurrent.set(this.builder, component.duplicate());
-                        }
-                    } catch (NoSuchFieldException | IllegalAccessException e1) {
-                        e1.printStackTrace();
-                    }
-                }
-            }
+            this.builder.append(component);
         }
     }
 
     private void appendValue() {
-        appendValue(ComponentBuilder.FormatRetention.NONE);
-    }
-
-    private void appendValue(ComponentBuilder.FormatRetention retention) {
         if (builder == null) {
-            builder = new ComponentBuilder(value.toString());
+            builder = TextComponent.builder(value.toString());
         } else {
-            builder.append(value.toString(), retention);
+            builder.append(value.toString());
         }
         if (!backwardsCompatibility || HAS_FONT_SUPPORT) {
-            builder.font(font);
+            builder.style(Style.builder().font(Key.of(font)).build());
         }
         builder.color(color);
         Util.applyFormat(builder, format);
@@ -368,18 +327,18 @@ public class MineDownParser {
             if (!v.startsWith("http://") && !v.startsWith("https://")) {
                 v = "http://" + v;
             }
-            builder.event(new ClickEvent(ClickEvent.Action.OPEN_URL, v));
+            builder.clickEvent(ClickEvent.of(ClickEvent.Action.OPEN_URL, v));
             if (urlHoverText() != null && !urlHoverText().isEmpty()) {
-                builder.event(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                builder.hoverEvent(HoverEvent.of(HoverEvent.Action.SHOW_TEXT,
                         new MineDown(urlHoverText()).replace("url", value.toString()).toComponent()
                 ));
             }
         }
         if (clickEvent != null) {
-            builder.event(clickEvent);
+            builder.clickEvent(clickEvent);
         }
         if (hoverEvent != null) {
-            builder.event(hoverEvent);
+            builder.hoverEvent(hoverEvent);
         }
         value = new StringBuilder();
     }
@@ -400,8 +359,8 @@ public class MineDownParser {
             defParts.add("");
         }
         String font = null;
-        ChatColor color = null;
-        Set<ChatColor> formats = new HashSet<>();
+        TextColor color = null;
+        Set<TextDecoration> formats = new HashSet<>();
         ClickEvent clickEvent = null;
         HoverEvent hoverEvent = null;
 
@@ -409,9 +368,10 @@ public class MineDownParser {
 
         for (int i = 0; i < defParts.size(); i++) {
             String definition = defParts.get(i);
-            ChatColor parsed = parseColor(definition, "", true, backwardsCompatibility());
+            TextColor parsed = parseColor(definition);
             if (parsed != null) {
                 if (Util.isFormat(parsed)) {
+                    // TODO: better handling of color vs format
                     formats.add(parsed);
                 } else {
                     color = parsed;
@@ -425,7 +385,7 @@ public class MineDownParser {
             }
 
             if (definition.toLowerCase().startsWith(COLOR_PREFIX)) {
-                color = parseColor(definition, COLOR_PREFIX, lenient(), backwardsCompatibility());
+                color = parseColor(definition);
                 if (!lenient() && Util.isFormat(color)) {
                     throw new IllegalArgumentException(color + " is a format and not a color!");
                 }
@@ -435,7 +395,7 @@ public class MineDownParser {
 
             if (definition.toLowerCase().startsWith(FORMAT_PREFIX)) {
                 for (String formatStr : definition.substring(FORMAT_PREFIX.length()).split(",")) {
-                    ChatColor format = parseColor(formatStr, "", lenient(), backwardsCompatibility());
+                    TextColor format = parseColor(formatStr);
                     if (!lenient() && !Util.isFormat(format)) {
                         throw new IllegalArgumentException(formats + " is a color and not a format!");
                     }
@@ -449,7 +409,7 @@ public class MineDownParser {
                 if (!definition.startsWith("http://") && !definition.startsWith("https://")) {
                     definition = "http://" + definition;
                 }
-                clickEvent = new ClickEvent(ClickEvent.Action.OPEN_URL, definition);
+                clickEvent = ClickEvent.of(ClickEvent.Action.OPEN_URL, definition);
                 continue;
             }
 
@@ -460,7 +420,7 @@ public class MineDownParser {
             }
             String[] parts = definition.split("=", 2);
             try {
-                hoverAction = HoverEvent.Action.valueOf(parts[0].toUpperCase());
+                hoverAction = HoverEvent.Action.NAMES.value(parts[0].toUpperCase());
             } catch (IllegalArgumentException ignored) {
             }
             try {
@@ -512,20 +472,16 @@ public class MineDownParser {
                 if (autoAddUrlPrefix() && clickAction == ClickEvent.Action.OPEN_URL && !v.startsWith("http://") && !v.startsWith("https://")) {
                     v = "http://" + v;
                 }
-                clickEvent = new ClickEvent(clickAction, v);
+                clickEvent = ClickEvent.of(clickAction, v);
             } else if (hoverAction == null) {
                 hoverAction = HoverEvent.Action.SHOW_TEXT;
             }
             if (hoverAction != null) {
                 String valueStr = value.toString();
-                if (!HAS_HOVER_CONTENT_SUPPORT) {
-                    hoverEvent = new HoverEvent(hoverAction, copy(false).urlDetection(false).parse(
-                            hoverAction == HoverEvent.Action.SHOW_TEXT ? Util.wrap(valueStr, hoverTextWidth()) : valueStr
-                    ).create());
-                } else if (hoverAction == HoverEvent.Action.SHOW_TEXT) {
-                    hoverEvent = new HoverEvent(hoverAction, new Text(copy(false).urlDetection(false).parse(
+                if (hoverAction == HoverEvent.Action.SHOW_TEXT) {
+                    hoverEvent = HoverEvent.of(hoverAction, copy(false).urlDetection(false).parse(
                            Util.wrap(valueStr, hoverTextWidth())
-                    ).create()));
+                    ).build());
                 } else if (hoverAction == HoverEvent.Action.SHOW_ENTITY) {
                     String[] valueParts = valueStr.split(":", 2);
                     try {
@@ -536,7 +492,7 @@ public class MineDownParser {
                         hoverEvent = new HoverEvent(hoverAction, new Entity(
                                 additionalParts[0], valueParts[0],
                                 additionalParts.length > 1 && additionalParts[1] != null ?
-                                        new TextComponent(copy(false).urlDetection(false).parse(additionalParts[1]).create()) : null
+                                        copy(false).urlDetection(false).parse(additionalParts[1]).build() : null
                         ));
                     } catch (Exception e) {
                         if (!lenient()) {
@@ -577,10 +533,10 @@ public class MineDownParser {
         }
 
         if (clickEvent != null && hoverEvent == null) {
-            hoverEvent = new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                    new ComponentBuilder(clickEvent.getAction().toString().toLowerCase().replace('_', ' ')).color(ChatColor.BLUE)
-                            .append(" " + clickEvent.getValue()).color(ChatColor.WHITE)
-                            .create());
+            hoverEvent = HoverEvent.of(HoverEvent.Action.SHOW_TEXT,
+                    TextComponent.builder(clickEvent.action().toString().toLowerCase().replace('_', ' ')).color(NamedTextColor.BLUE)
+                            .append(" " + clickEvent.value()).color(NamedTextColor.WHITE)
+                            .build());
         }
 
         return copy()
@@ -620,21 +576,21 @@ public class MineDownParser {
         return this.font;
     }
 
-    protected MineDownParser color(ChatColor color) {
+    protected MineDownParser color(TextColor color) {
         this.color = color;
         return this;
     }
 
-    protected ChatColor color() {
+    protected TextColor color() {
         return this.color;
     }
 
-    protected MineDownParser format(Set<ChatColor> format) {
+    protected MineDownParser format(Set<TextDecoration> format) {
         this.format = format;
         return this;
     }
 
-    protected Set<ChatColor> format() {
+    protected Set<TextDecoration> format() {
         return this.format;
     }
 
@@ -656,52 +612,20 @@ public class MineDownParser {
         return this.hoverEvent;
     }
 
-    /**
-     * Parse a color definition
-     * @param colorString The string to parse
-     * @param prefix      The color prefix e.g. ampersand (&amp;)
-     * @param lenient     Whether or not to accept malformed strings
-     * @return The parsed color or <tt>null</tt> if lenient is true and no color was found
-     * @deprecated This does not need to be exposed publicly and will bre private in the next version
-     */
-    @Deprecated
-    public static ChatColor parseColor(String colorString, String prefix, boolean lenient) {
-        return parseColor(colorString, prefix, lenient, true);
+    public static /* Nullble */ TextColor resolveHex(final String color) {
+        return TextColor.fromHexString(color);
     }
 
-    private static ChatColor parseColor(String colorString, String prefix, boolean lenient, boolean backwardsCompatibility) {
-        ChatColor color = null;
-        if (prefix.length() + 1 == colorString.length()) {
-            color = ChatColor.getByChar(colorString.charAt(prefix.length()));
-            if (color == null && !lenient) {
-                throw new IllegalArgumentException(colorString.charAt(prefix.length()) + " is not a valid " + prefix + " char!");
-            }
+    public static /* Nullable */ TextColor resolveNamed(final String color) {
+        return NamedTextColor.NAMES.value(color.toLowerCase(Locale.ROOT));
+    }
+
+    public static  /* Nullable */ TextColor parseColor(final String color) {
+        if (color.charAt(0) == '#') {
+            return resolveHex(color);
         } else {
-            try {
-                colorString = colorString.substring(prefix.length());
-                if (colorString.charAt(0) == '#') {
-                    if (colorString.length() == 4){
-                        StringBuilder sb = new StringBuilder("#");
-                        for (int i = 1; i < 4; i++) {
-                            sb.append(colorString.charAt(i)).append(colorString.charAt(i));
-                        }
-                        colorString = sb.toString();
-                    }
-                    if (!backwardsCompatibility || HAS_RGB_SUPPORT) {
-                        color = ChatColor.of(colorString);
-                    } else {
-                        color = Util.getClosestLegacy(new Color(Integer.parseInt(colorString.substring(1), 16)));
-                    }
-                } else {
-                    color = ChatColor.valueOf(colorString.toUpperCase());
-                }
-            } catch (IllegalArgumentException e) {
-                if (!lenient) {
-                    throw e;
-                }
-            }
+            return resolveNamed(color);
         }
-        return color;
     }
 
     /**
